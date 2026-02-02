@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Be My Valentine</title>
+    <style>
+        :root{--bg1:#0f0c29;--bg2:#302b63;--bg3:#24243e;--accent:#ff5fad;--accent2:#ffd166;--glow:0 0 28px rgba(255,105,180,0.85);}
+        *{box-sizing:border-box;}
+        body{
+          margin:0;min-height:100vh;font-family:"Poppins",system-ui,-apple-system,sans-serif;
+          background:radial-gradient(circle at 20% 20%, #ff7eb6 0%, rgba(255,255,255,0) 25%),
+                     radial-gradient(circle at 80% 10%, #ffd1dc 0%, rgba(255,255,255,0) 22%),
+                     linear-gradient(135deg, var(--bg1), var(--bg2), var(--bg3));
+          color:#fff;overflow:hidden;
+        }
+        canvas{position:fixed;inset:0;pointer-events:none;}
+        .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:2rem;}
+        h1{font-size:clamp(2.6rem,5vw,4rem);margin:0 0 0.8rem;text-shadow:var(--glow);}
+        h2{margin:0 0 1.6rem;font-weight:400;opacity:0.92;}
+        .buttons{display:inline-flex;gap:1rem;position:relative;}
+        button{
+          border:none;padding:0.95rem 2.1rem;border-radius:999px;font-size:1.1rem;
+          cursor:pointer;transition:transform 0.2s,box-shadow 0.2s,opacity 0.3s;font-weight:600;
+        }
+        #yes{background:linear-gradient(120deg,#ff7eb6,#ff3f81);color:#fff;box-shadow:var(--glow);}
+        #yes:hover{transform:translateY(-2px) scale(1.03);}
+        #no{background:#2d2b55;color:#fff;box-shadow:0 0 10px rgba(0,0,0,0.35);position:static;}
+        #no:hover{transform:translateY(-1px);}
+        .heart{
+          position:fixed;width:18px;height:18px;background:#ff7eb6;transform:rotate(45deg);
+          animation:floatUp 9s linear infinite;opacity:0.65;
+        }
+        .heart::before,.heart::after{content:"";position:absolute;width:18px;height:18px;background:#ff7eb6;border-radius:50%;}
+        .heart::before{top:-9px;left:0;} .heart::after{left:-9px;top:0;}
+        @keyframes floatUp{from{transform:translateY(105vh) rotate(45deg);opacity:0.2;}to{transform:translateY(-12vh) rotate(45deg);opacity:0.95;}}
+        .emoji{position:fixed;font-size:1.7rem;animation:drift 6s linear infinite;opacity:0.85;pointer-events:none;}
+        @keyframes drift{from{transform:translateY(-8vh) translateX(0);}to{transform:translateY(112vh) translateX(50px);}}
+        .love-message{
+          display:none;max-width:720px;margin:0 auto;background:rgba(255,255,255,0.06);
+          border:1px solid rgba(255,255,255,0.18);box-shadow:0 10px 50px rgba(0,0,0,0.35);
+          backdrop-filter:blur(6px);padding:2rem 2.4rem;border-radius:20px;
+          animation:popIn 0.7s ease forwards;
+        }
+        @keyframes popIn{from{opacity:0;transform:translateY(20px) scale(0.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+        .typewriter{display:inline-block;border-right:2px solid #fff;white-space:nowrap;overflow:hidden;animation:caret 0.9s step-end infinite;}
+        @keyframes caret{50%{border-color:transparent;}}
+        .sparkle{color:var(--accent2);text-shadow:0 0 8px rgba(255,209,102,0.8);font-weight:700;}
+        .subtext{margin-top:0.8rem;opacity:0.9;line-height:1.6;}
+        .unmute{
+          position:fixed;bottom:16px;right:16px;background:rgba(0,0,0,0.55);color:#fff;
+          padding:10px 14px;border-radius:14px;font-size:0.95rem;cursor:pointer;user-select:none;
+          box-shadow:0 10px 30px rgba(0,0,0,0.35);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);
+        }
+        .unmute.hidden{display:none;}
+        @media (max-width:520px){.buttons{flex-direction:column;align-items:center;}#no{position:static;}}
+    </style>
+</head>
+<body>
+<canvas id="fireworks"></canvas>
+<div class="overlay">
+    <div id="content">
+        <h1>Will you be my Valentine my sweetie baby?</h1>
+        <h2>You light up my world—let’s make it sparkle together. ✨</h2>
+        <div class="buttons" id="btnWrap">
+            <button id="yes">Yes! Absolutely 💖</button>
+            <button id="no">No 🙃</button>
+        </div>
+        <div class="love-message" id="loveMessage">
+            <div class="typewriter" id="typeText"></div>
+            <div class="subtext" id="subText"></div>
+        </div>
+    </div>
+</div>
+
+<div id="unmute" class="unmute">🔈 Tap to play music</div>
+
+<audio id="bgm" loop preload="auto" crossorigin="anonymous" playsinline>
+    <source src="https://cdn.pixabay.com/download/audio/2024/01/02/audio_9c016e918a.mp3?filename=romantic-piano-191271.mp3" type="audio/mpeg">
+    <source src="https://cdn.pixabay.com/download/audio/2022/08/22/audio_7b9ab930e0.mp3?filename=romantic-love-115831.mp3" type="audio/mpeg">
+</audio>
+
+<!-- EmailJS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+<script>
+    (() => {
+      // INIT EmailJS
+      emailjs.init("MqqQOaLHohGhhgXX4");
+
+      const yesBtn = document.getElementById("yes");
+      const noBtn  = document.getElementById("no");
+      const btnWrap = document.getElementById("btnWrap");
+      const loveMessage = document.getElementById("loveMessage");
+      const typeText = document.getElementById("typeText");
+      const subText = document.getElementById("subText");
+      const fwCanvas = document.getElementById("fireworks");
+      const ctx = fwCanvas.getContext("2d");
+      const bgm = document.getElementById("bgm");
+      const unmute = document.getElementById("unmute");
+      const emojis = ["💖","😘","😍","💘","💋","💕","❤️","💞","⭐️","🌸"];
+
+      // Notify helper (EmailJS)
+      function notifyChoice(choice) {
+        return emailjs.send("service_nv60xxh", "template_69za0rb", {
+          choice,
+          timestamp: new Date().toISOString(),
+          note: "Valentine page choice"
+        }).catch(err => console.warn("EmailJS failed", err));
+      }
+
+      let w = innerWidth, h = innerHeight;
+      fwCanvas.width = w; fwCanvas.height = h;
+      addEventListener("resize", () => { w = innerWidth; h = innerHeight; fwCanvas.width = w; fwCanvas.height = h; });
+
+      // Floating hearts
+      for (let i = 0; i < 36; i++) {
+        const heart = document.createElement("div");
+        heart.className = "heart";
+        heart.style.left = Math.random() * 100 + "vw";
+        heart.style.animationDuration = 6 + Math.random() * 7 + "s";
+        heart.style.animationDelay = Math.random() * -12 + "s";
+        heart.style.opacity = 0.35 + Math.random() * 0.5;
+        document.body.appendChild(heart);
+      }
+
+      // Floating emojis
+      function spawnEmoji() {
+        const e = document.createElement("div");
+        e.className = "emoji";
+        e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        e.style.left = Math.random() * 100 + "vw";
+        e.style.animationDuration = 5 + Math.random() * 4 + "s";
+        e.style.animationDelay = Math.random() * -6 + "s";
+        document.body.appendChild(e);
+        setTimeout(() => e.remove(), 10000);
+      }
+      setInterval(spawnEmoji, 700);
+
+      // Magnet-style runaway "No" button
+      const buffer = 24;
+      let posX = null, posY = null, vx = 0, vy = 0;
+      const maxSpeed = 18;
+      const repelRadius = 140;
+      function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
+      function fixInitialNoPosition() {
+        const rect = noBtn.getBoundingClientRect();
+        posX = rect.left; posY = rect.top;
+        noBtn.style.position = "fixed";
+        noBtn.style.left = posX + "px";
+        noBtn.style.top  = posY + "px";
+      }
+      window.requestAnimationFrame(fixInitialNoPosition);
+
+      function moveNo(ev) {
+        if (innerWidth < 520 || posX === null) return;
+        const rect = noBtn.getBoundingClientRect();
+        const yesRect = yesBtn.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = cx - ev.clientX;
+        const dy = cy - ev.clientY;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist < repelRadius) {
+          // Optional: notify when she chases "No"
+          // notifyChoice("no-hover");
+          const force = (repelRadius - dist) / repelRadius;
+          vx += (dx / (dist || 1)) * force * 6;
+          vy += (dy / (dist || 1)) * force * 6;
+        }
+
+        vx *= 0.9; vy *= 0.9;
+        vx = clamp(vx, -maxSpeed, maxSpeed);
+        vy = clamp(vy, -maxSpeed, maxSpeed);
+
+        posX += vx; posY += vy;
+        posX = clamp(posX, buffer, w - rect.width - buffer);
+        posY = clamp(posY, buffer, h - rect.height - buffer);
+
+        if (!(posX > yesRect.right || posX + rect.width < yesRect.left || posY > yesRect.bottom || posY + rect.height < yesRect.top)) {
+          posX = yesRect.right + 30;
+          posY = yesRect.top - 40;
+        }
+        noBtn.style.left = posX + "px";
+        noBtn.style.top  = posY + "px";
+      }
+      document.addEventListener("mousemove", moveNo);
+      noBtn.addEventListener("click", (e) => e.preventDefault());
+
+      // Fireworks
+      const particles = [];
+      function Firework(x, y) {
+        const count = 44;
+        for (let i = 0; i < count; i++) {
+          const angle = (Math.PI * 2 * i) / count;
+          const speed = 2 + Math.random() * 4.5;
+          particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, alpha: 1, color: `hsl(${Math.random() * 60 + 320}, 100%, 70%)` });
+        }
+      }
+      function loop() {
+        ctx.clearRect(0, 0, w, h);
+        particles.forEach((p, i) => {
+          p.x += p.vx; p.y += p.vy; p.vy += 0.03; p.alpha -= 0.01;
+          if (p.alpha <= 0) particles.splice(i, 1);
+          else {
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+          }
+        });
+        requestAnimationFrame(loop);
+      }
+      loop();
+
+      // Typewriter reveal
+      function typeWriter(lines, sublines) {
+        const full = lines.join(" ");
+        typeText.textContent = "";
+        let idx = 0;
+        const speed = 50;
+        const timer = setInterval(() => {
+          typeText.textContent = full.slice(0, idx) + "█";
+          idx++;
+          if (idx > full.length) {
+            clearInterval(timer);
+            typeText.textContent = full;
+            subText.innerHTML = sublines.map(s => `<div>${s}</div>`).join(" ");
+          }
+        }, speed);
+      }
+
+      // Music helpers
+      function showUnmute(show) { unmute.classList.toggle("hidden", !show); }
+      async function playMusic() {
+        try {
+          bgm.muted = false;
+          bgm.volume = 0.48;
+          bgm.currentTime = bgm.currentTime || 0;
+          await bgm.play();
+          showUnmute(false);
+        } catch (err) {
+          showUnmute(true);
+        }
+      }
+      ["pointerdown","touchstart","click"].forEach(evt => {
+        document.addEventListener(evt, () => { playMusic(); }, { once:true, passive:true });
+      });
+      unmute.addEventListener("click", playMusic);
+
+      // On Yes click
+      yesBtn.addEventListener("click", () => {
+        notifyChoice("yes"); // send email on Yes
+        playMusic();
+        btnWrap.style.opacity = 0;
+        btnWrap.style.pointerEvents = "none";
+        setTimeout(() => { btnWrap.style.display = "none"; }, 300);
+
+        loveMessage.style.display = "block";
+        Firework(w * 0.3 + Math.random() * w * 0.4, h * 0.3 + Math.random() * h * 0.4);
+        Firework(w * 0.2 + Math.random() * w * 0.6, h * 0.4 + Math.random() * h * 0.3);
+        Firework(w * 0.4 + Math.random() * w * 0.2, h * 0.2 + Math.random() * h * 0.2);
+
+        for (let i = 0; i < 22; i++) {
+          const e = document.createElement("div");
+          e.className = "emoji";
+          e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+          e.style.left = 25 + Math.random() * 50 + "vw";
+          e.style.top = 25 + Math.random() * 40 + "vh";
+          e.style.animationDuration = 3 + Math.random() * 2 + "s";
+          document.body.appendChild(e);
+          setTimeout(() => e.remove(), 5000);
+        }
+
+        typeWriter(
+          ["You’re my favorite girl,", "my safest place, and the heartbeat in my every song."],
+          [
+            "Here’s to stolen glances, midnight whispers, and forever choosing <span class='sparkle'>us</span>. 💋💕",
+            "Let’s keep writing our love story—slow dances, soft kisses, and endless tomorrows."
+          ]
+        );
+      });
+    })();
+</script>
+</body>
+  </html>
